@@ -1,0 +1,34 @@
+{
+    "name": "向日葵远程命令执行",
+    "tags": [
+        "rce",
+        "内网"
+    ],
+    "help": "向日葵11.0.0.33162、10.3.0.27372、11.1.1等版本存在远程命令执行",
+    "author": "P0m32Kun",
+    "module_file": "yak_module.yak",
+    "params": [
+        {
+            "name": "host",
+            "verbose": "测试目标",
+            "description": "目标IP+端口形式，例如：127.0.0.1:8080",
+            "type": "string",
+            "default_value": "",
+            "required": true,
+            "group": ""
+        },
+        {
+            "name": "commend",
+            "verbose": "系统命令",
+            "description": "想要执行的系统命令",
+            "type": "string",
+            "default_value": "",
+            "required": false,
+            "group": ""
+        }
+    ],
+    "document": "document.md",
+    "general_module_verbose": "",
+    "general_module_key": "",
+    "is_general_module": false
+}

